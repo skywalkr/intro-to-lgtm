@@ -1,0 +1,58 @@
+name: grafana-lgtm
+volumes:
+  grafana:
+  postgres:
+services:
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    ports:
+      - "9093:9093"
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml", "--storage.path=/alertmanager"]
+#    volumes:
+#      - "./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml"
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - "./grafana/provisioning:/etc/grafana/provisioning"
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_FEATURE_TOGGLES_ENABLE=flameGraph traceqlSearch correlations traceQLStreaming metricsSummary traceqlEditor traceToMetrics traceToProfiles datatrails
+      - GF_INSTALL_PLUGINS=https://storage.googleapis.com/integration-artifacts/grafana-lokiexplore-app/grafana-lokiexplore-app-latest.zip;grafana-lokiexplore-app
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+  loki:
+    image: grafana/loki:3.2.0
+    command: ["--pattern-ingester.enabled=true", "-config.file=/etc/loki/loki.yaml"]
+    ports:
+      - "3100:3100"
+    volumes:
+      - "./loki/loki.yaml:/etc/loki/loki.yaml"
+  mimir:
+    image: grafana/mimir:2.13.0
+    command: ["-ingester.native-histograms-ingestion-enabled=true", "-config.file=/etc/mimir.yaml"]
+    ports:
+      - "9009:9009"
+    volumes:
+      - "./mimir/mimir.yaml:/etc/mimir.yaml"
+  tempo:
+    image: grafana/tempo:2.6.0
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+      - "9411:9411"
+      - "55680:55680"
+      - "55681:55681"
+      - "14250:14250"
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - "./tempo/tempo.yaml:/etc/tempo.yaml"
+  opentelemetry-collector:
+    image: otel/opentelemetry-collector-contrib
+    ports:
+      - "12345:12345"
+    volumes:
+      - "./otel/otel.yml:/etc/otel-collector-contrib.yml"
+    command: ["--config=/etc/otel-collector-contrib.yml"]
